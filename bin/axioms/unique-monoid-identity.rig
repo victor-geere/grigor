@@ -1,0 +1,12 @@
+Theorem id_unique (Mo : Monoid) : forall e : Mo.M,
+  (forall x : Mo.M, Mo.mul e x = x) ->
+  (forall x : Mo.M, Mo.mul x e = x) ->
+  e = Mo.one :=
+  fun (Mo : Monoid) (e : Mo.M)
+      (left_id : forall x : Mo.M, Mo.mul e x = x)
+      (right_id : forall x : Mo.M, Mo.mul x e = x) =>
+    trans Mo.M e (Mo.mul e Mo.one) Mo.one
+      (* e = mul e one by right_id *)
+      (right_id e)
+      (* mul e one = one by left_id one *)
+      (left_id Mo.one).

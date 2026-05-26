@@ -1,0 +1,5 @@
+Axiom A : Set.
+Axiom x : A.
+Axiom eq : A -> A -> Prop.
+
+Axiom J : forall (y : A) (e : eq x y), A.

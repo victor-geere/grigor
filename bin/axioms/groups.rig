@@ -1,0 +1,6 @@
+Module Type Group := sig
+  Include Monoid.
+  Axiom inv : M -> M.
+  Axiom mul_inv_l : forall x : M, mul (inv x) x = one.
+  Axiom mul_inv_r : forall x : M, mul x (inv x) = one.
+end.

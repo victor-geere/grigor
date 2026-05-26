@@ -1,0 +1,30 @@
+Theorem inv_unique (G : Group) : forall x y : G.M,
+  G.mul y x = G.one -> y = G.inv x :=
+  fun (G : Group) (x y : G.M) (h : G.mul y x = G.one) =>
+    let lem1 : G.mul y (G.mul x (G.inv x)) = G.mul (G.mul y x) (G.inv x) :=
+      sym G.M (G.mul (G.mul y x) (G.inv x)) (G.mul y (G.mul x (G.inv x)))
+        (G.mul_assoc y x (G.inv x))
+    in
+    let lem2 : G.mul y (G.mul x (G.inv x)) = G.inv x :=
+      trans G.M (G.mul y (G.mul x (G.inv x)))
+                (G.mul y G.one)
+                (G.inv x)
+        ( (* substitution along mul_inv_r x *) 
+          J G.M (G.mul x (G.inv x)) (fun t _ => G.mul y t = G.inv x)
+            (sym G.M (G.mul y G.one) y (G.mul_one_r y))
+            G.one (G.mul_inv_r x)
+        )
+        (sym G.M (G.inv x) (G.mul y G.one) (G.mul_one_r y))
+    in
+    trans G.M y (G.mul (G.mul y x) (G.inv x)) (G.inv x)
+      (trans G.M y (G.mul y (G.mul x (G.inv x))) (G.mul (G.mul y x) (G.inv x))
+        (sym G.M (G.mul y (G.mul x (G.inv x))) y lem2)
+        (sym G.M (G.mul (G.mul y x) (G.inv x)) (G.mul y (G.mul x (G.inv x))) lem1)
+      )
+      (trans G.M (G.mul (G.mul y x) (G.inv x)) (G.mul G.one (G.inv x)) (G.inv x)
+        (J G.M (G.mul y x) (fun t _ => G.mul t (G.inv x) = G.inv x)
+          (G.mul_one_l (G.inv x))
+          G.one h
+        )
+        (G.mul_one_l (G.inv x))
+      ).

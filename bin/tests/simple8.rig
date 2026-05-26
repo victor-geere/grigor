@@ -1,0 +1,4 @@
+Axiom A : Set.
+Axiom x : A.
+
+Axiom J : forall (y : A) (e : A), A.

@@ -1,0 +1,50 @@
+# grigor: a simple proof assistant in Python
+lark
+typing
+
+# Requirements for advanced mathematics with Python
+# Install via: pip install -r requirements.txt
+
+# Symbolic mathematics
+sympy
+
+# Core numerical stack
+numpy
+scipy
+
+# Arbitrary-precision arithmetic
+mpmath
+gmpy2
+
+# Convex optimisation & linear programming
+cvxopt
+cvxpy
+PuLP
+
+# Statistics & probability
+statsmodels
+pymc
+pyro-ppl
+
+# Number theory
+primefac
+
+# Polynomial systems & Gröbner bases
+msolve
+
+# Topology & homological algebra
+gudhi
+scikit-tda
+
+# Graph theory
+networkx
+
+# PDE solving (finite elements)
+fenics-dolfinx
+
+# High-performance & automatic differentiation
+jax
+jaxlib
+cupy
+torch
+tensorflow

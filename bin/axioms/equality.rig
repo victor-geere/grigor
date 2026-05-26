@@ -1,0 +1,6 @@
+Module Equality := struct
+  Inductive eq (A : Set) (x : A) : forall y : A, Prop :=
+    | refl : eq A x x.
+  Axiom J : forall (A : Set) (x : A) (P : forall y : A, eq A x y -> Set),
+            P x (refl A x) -> forall (y : A) (e : eq A x y), P y e.
+End Equality.

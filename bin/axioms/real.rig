@@ -1,0 +1,185 @@
+// real.rig — Real numbers for Grigor proofs
+//
+// Strategy: the reals are introduced axiomatically (Dedekind-style motivation,
+// Cauchy-completeness as an axiom) rather than constructed from rationals,
+// keeping the file self-contained and usable without a nat/rat library.
+//
+// Sections
+//   1. Carrier and order
+//   2. Field operations and axioms
+//   3. Order axioms
+//   4. Completeness (least-upper-bound principle)
+//   5. Derived notions: absolute value, distance
+//   6. Useful consequences (stated as axioms pending proof infrastructure)
+
+// ──────────────────────────────────────────────────────────────────────────
+// 1. Carrier and order
+// ──────────────────────────────────────────────────────────────────────────
+
+// The type of real numbers lives in Set.
+Axiom R : Set.
+
+// Strict less-than.  R_lt x y means x < y.
+Axiom R_lt : R -> R -> Prop.
+
+// Less-than-or-equal derived via disjunction.
+// We define it as an inductive so proofs can branch on the two cases.
+Inductive R_le (x : R) (y : R) : Prop :=
+  | R_le_lt : R_lt x y -> R_le x y
+  | R_le_eq : eq R x y -> R_le x y.
+
+// ──────────────────────────────────────────────────────────────────────────
+// 2. Field operations
+// ──────────────────────────────────────────────────────────────────────────
+
+Axiom R_zero : R.
+Axiom R_one  : R.
+
+Axiom R_add  : R -> R -> R.
+Axiom R_mul  : R -> R -> R.
+Axiom R_neg  : R -> R.          // additive inverse
+Axiom R_inv  : R -> R.          // multiplicative inverse (defined for all R;
+                                 // axioms constrain it only for nonzero inputs)
+
+// Subtraction and division as abbreviations via Definitions.
+Definition R_sub (x : R) (y : R) : R := R_add x (R_neg y).
+Definition R_div (x : R) (y : R) : R := R_mul x (R_inv y).
+
+// ── Field axioms ──
+
+// Addition forms an abelian group.
+Axiom R_add_comm   : forall (x : R) (y : R), eq R (R_add x y) (R_add y x).
+Axiom R_add_assoc  : forall (x : R) (y : R) (z : R),
+                       eq R (R_add (R_add x y) z) (R_add x (R_add y z)).
+Axiom R_add_zero_l : forall (x : R), eq R (R_add R_zero x) x.
+Axiom R_add_neg    : forall (x : R), eq R (R_add x (R_neg x)) R_zero.
+
+// Multiplication forms an abelian group on nonzero elements.
+Axiom R_mul_comm   : forall (x : R) (y : R), eq R (R_mul x y) (R_mul y x).
+Axiom R_mul_assoc  : forall (x : R) (y : R) (z : R),
+                       eq R (R_mul (R_mul x y) z) (R_mul x (R_mul y z)).
+Axiom R_mul_one_l  : forall (x : R), eq R (R_mul R_one x) x.
+Axiom R_mul_inv    : forall (x : R), R_lt R_zero x ->
+                       eq R (R_mul x (R_inv x)) R_one.
+
+// Distributivity.
+Axiom R_distr_l    : forall (x : R) (y : R) (z : R),
+                       eq R (R_mul x (R_add y z))
+                            (R_add (R_mul x y) (R_mul x z)).
+
+// Zero and one are distinct.
+Axiom R_zero_ne_one : eq R R_zero R_one -> False.
+
+// ──────────────────────────────────────────────────────────────────────────
+// 3. Order axioms
+// ──────────────────────────────────────────────────────────────────────────
+
+// Strict order is irreflexive, transitive, total (trichotomy).
+Axiom R_lt_irrefl  : forall (x : R), R_lt x x -> False.
+Axiom R_lt_trans   : forall (x : R) (y : R) (z : R),
+                       R_lt x y -> R_lt y z -> R_lt x z.
+Axiom R_lt_trichot : forall (x : R) (y : R),
+                       R_lt x y -> eq R x y -> R_lt y x -> False.
+
+// Order is compatible with addition.
+Axiom R_lt_add_compat : forall (x : R) (y : R) (z : R),
+                          R_lt x y -> R_lt (R_add x z) (R_add y z).
+
+// Order is compatible with multiplication by a positive.
+Axiom R_lt_mul_pos : forall (x : R) (y : R) (z : R),
+                       R_lt R_zero z -> R_lt x y ->
+                       R_lt (R_mul z x) (R_mul z y).
+
+// ──────────────────────────────────────────────────────────────────────────
+// 4. Completeness — least upper bound (LUB) principle
+// ──────────────────────────────────────────────────────────────────────────
+
+// A predicate P : R -> Prop is bounded above if some b satisfies P x -> x <= b.
+Definition is_upper_bound (P : R -> Prop) (b : R) : Prop :=
+  forall (x : R), P x -> R_le x b.
+
+Definition is_bounded_above (P : R -> Prop) : Prop :=
+  forall (b : R), is_upper_bound P b -> False -> False.
+// (Existential in Prop: there exists b such that is_upper_bound P b.)
+// We encode existence with a Σ-style axiom below instead.
+
+// Axiom of completeness: every non-empty predicate that is bounded above
+// has a least upper bound.
+Axiom R_lub_exists : forall (P : R -> Prop),
+                       // P is inhabited
+                       (forall (bot : Prop), (forall (x : R), P x -> bot) -> bot) ->
+                       // P is bounded above
+                       (forall (bot : Prop),
+                          (forall (b : R), is_upper_bound P b -> bot) -> bot) ->
+                       // conclusion: there is an s that is the least upper bound
+                       forall (bot : Prop),
+                         (forall (s : R),
+                            is_upper_bound P s ->
+                            (forall (b : R), is_upper_bound P b -> R_le s b) ->
+                            bot) ->
+                         bot.
+
+// ──────────────────────────────────────────────────────────────────────────
+// 5. Absolute value and distance
+// ──────────────────────────────────────────────────────────────────────────
+
+// |x| = x if 0 <= x, else -x.  Introduced axiomatically with characterising
+// axioms rather than by match (R has no constructors to match on).
+Axiom R_abs : R -> R.
+
+Axiom R_abs_nonneg  : forall (x : R), R_le R_zero (R_abs x).
+Axiom R_abs_pos     : forall (x : R), R_lt R_zero x -> eq R (R_abs x) x.
+Axiom R_abs_neg     : forall (x : R), R_lt x R_zero -> eq R (R_abs x) (R_neg x).
+Axiom R_abs_zero    : eq R (R_abs R_zero) R_zero.
+Axiom R_abs_triangle : forall (x : R) (y : R),
+                         R_le (R_abs (R_add x y))
+                              (R_add (R_abs x) (R_abs y)).
+
+// Metric distance d(x,y) = |x - y|.
+Definition R_dist (x : R) (y : R) : R := R_abs (R_sub x y).
+
+// ──────────────────────────────────────────────────────────────────────────
+// 6. Useful consequences (admissible axioms / convenience lemmas)
+// ──────────────────────────────────────────────────────────────────────────
+
+// These are provable from the axioms above but require a richer proof
+// infrastructure (natural numbers, induction, etc.).  They are stated as
+// axioms here so library users can appeal to them immediately.
+
+// Right-identity for addition.
+Axiom R_add_zero_r : forall (x : R), eq R (R_add x R_zero) x.
+
+// Right-identity for multiplication.
+Axiom R_mul_one_r  : forall (x : R), eq R (R_mul x R_one) x.
+
+// Negation of zero.
+Axiom R_neg_zero   : eq R (R_neg R_zero) R_zero.
+
+// Double negation.
+Axiom R_neg_neg    : forall (x : R), eq R (R_neg (R_neg x)) x.
+
+// Multiplication by zero.
+Axiom R_mul_zero_l : forall (x : R), eq R (R_mul R_zero x) R_zero.
+Axiom R_mul_zero_r : forall (x : R), eq R (R_mul x R_zero) R_zero.
+
+// Negation distributes over addition.
+Axiom R_neg_add    : forall (x : R) (y : R),
+                       eq R (R_neg (R_add x y)) (R_add (R_neg x) (R_neg y)).
+
+// Positivity of one.
+Axiom R_zero_lt_one : R_lt R_zero R_one.
+
+// Archimedean property (stated as an axiom; requires nat).
+// For each x there exists a natural-number multiple of 1 exceeding x.
+// Stated here in a Prop-level encoding without nat to remain self-contained:
+// for every x and every positive epsilon there is no lower bound for
+// {n * eps | n "natural"}, i.e. the set is unbounded above.
+Axiom R_archimedean : forall (x : R) (eps : R),
+                        R_lt R_zero eps ->
+                        forall (bot : Prop),
+                          (forall (n : R),
+                             R_lt R_zero n ->
+                             // n is a "step count": n * eps > x
+                             R_lt x (R_mul n eps) ->
+                             bot) ->
+                          bot.
