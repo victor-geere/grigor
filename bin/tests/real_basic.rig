@@ -1,0 +1,62 @@
+// real_basic.rig — Basic real-number proofs
+//
+// Declares the fragment of bin/lib/real.rig needed here, then proves
+// five theorems that follow directly from those axioms.
+//
+// Run from the bin/ directory:
+//   python3 grigor.py tests/real_basic.rig
+
+// ── Carrier and order ────────────────────────────────────────────────────
+
+Axiom R : Set.
+Axiom R_lt : R -> R -> Prop.
+
+// R_le is an inductive with two introduction rules.
+Inductive R_le (x : R) (y : R) : Prop :=
+  | R_le_lt : R_lt x y -> R_le x y
+  | R_le_eq : eq R x y -> R_le x y.
+
+// ── Field fragment ────────────────────────────────────────────────────────
+
+Axiom R_zero : R.
+Axiom R_one  : R.
+Axiom R_add  : R -> R -> R.
+Axiom R_neg  : R -> R.
+
+// ── Selected axioms ───────────────────────────────────────────────────────
+
+Axiom R_add_comm   : forall (x : R) (y : R),
+                       eq R (R_add x y) (R_add y x).
+
+Axiom R_add_zero_l : forall (x : R),
+                       eq R (R_add R_zero x) x.
+
+Axiom R_lt_irrefl  : forall (x : R), R_lt x x -> False.
+
+Axiom R_lt_trans   : forall (x : R) (y : R) (z : R),
+                       R_lt x y -> R_lt y z -> R_lt x z.
+
+// ── Proofs ────────────────────────────────────────────────────────────────
+
+// Every real number is equal to itself.
+Theorem R_eq_refl : forall (x : R), eq R x x :=
+  fun (x : R) => refl x.
+
+// R_le is reflexive: x = x witnesses x <= x.
+Theorem R_le_refl : forall (x : R), R_le x x :=
+  fun (x : R) => R_le_eq x x (refl x).
+
+// Strict inequality implies weak inequality.
+Theorem R_lt_le : forall (x : R) (y : R), R_lt x y -> R_le x y :=
+  fun (x : R) (y : R) (h : R_lt x y) => R_le_lt x y h.
+
+// Transitivity of strict inequality (direct application of the axiom).
+Theorem R_lt_trans_thm : forall (x : R) (y : R) (z : R),
+    R_lt x y -> R_lt y z -> R_lt x z :=
+  fun (x : R) (y : R) (z : R) (h1 : R_lt x y) (h2 : R_lt y z) =>
+    R_lt_trans x y z h1 h2.
+
+// Commutativity of addition (restated as a theorem from the axiom).
+Theorem R_add_comm_thm : forall (x : R) (y : R),
+    eq R (R_add x y) (R_add y x) :=
+  fun (x : R) (y : R) => R_add_comm x y.

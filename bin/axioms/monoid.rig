@@ -1,0 +1,8 @@
+Module Type Monoid := sig
+  Axiom M    : Set.
+  Axiom mul  : M -> M -> M.
+  Axiom one  : M.
+  Axiom mul_assoc : forall x y z : M, mul (mul x y) z = mul x (mul y z).
+  Axiom mul_one_l : forall x : M, mul one x = x.
+  Axiom mul_one_r : forall x : M, mul x one = x.
+end.

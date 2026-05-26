@@ -1,0 +1,5 @@
+Import "../axioms/equality.rig"
+
+Theorem sym : forall (A : Set) (x y : A), eq A x y -> eq A y x :=
+  fun (A : Set) (x y : A) (p : eq A x y) =>
+    J A x (fun (z : A) (_ : eq A x z) => eq A z x) (refl A x) y p.
