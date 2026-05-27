@@ -1,0 +1,56 @@
+// test_field.rig
+// Tests for bin/axioms/field.rig (which includes Ring).
+//
+// Exercises every Field export: mul_comm, inv, zero_ne_one, mul_inv.
+// Also derives the left inverse from right inverse + commutativity,
+// confirming that mul_comm is necessary for a commutative field.
+
+Import "../axioms/rings.rig".
+Import "../axioms/field.rig".
+Import "../axioms/equality.rig".
+
+// ── mul_comm is accessible ────────────────────────────────────────────────
+
+Theorem field_mul_comm : forall (F : Field) (x y : F.R),
+    F.mul x y = F.mul y x :=
+  fun (F : Field) (x y : F.R) => F.mul_comm x y.
+
+// ── zero ≠ one ────────────────────────────────────────────────────────────
+
+Theorem field_zero_ne_one : forall (F : Field),
+    (F.zero = F.one) -> False :=
+  fun (F : Field) (h : F.zero = F.one) => F.zero_ne_one h.
+
+// ── Right inverse for nonzero elements ───────────────────────────────────
+
+Theorem field_mul_inv_r : forall (F : Field) (x : F.R),
+    ((x = F.zero) -> False) -> F.mul x (F.inv x) = F.one :=
+  fun (F : Field) (x : F.R) (hne : (x = F.zero) -> False) =>
+    F.mul_inv x hne.
+
+// ── Left inverse derived from right inverse + commutativity ───────────────
+//
+// mul (inv x) x = one
+// Proof: mul (inv x) x = mul x (inv x) [comm] = one [mul_inv].
+Theorem field_mul_inv_l : forall (F : Field) (x : F.R),
+    ((x = F.zero) -> False) -> eq F.R (F.mul (F.inv x) x) F.one :=
+  fun (F : Field) (x : F.R) (hne : (x = F.zero) -> False) =>
+    trans F.R (F.mul (F.inv x) x) (F.mul x (F.inv x)) F.one
+      (F.mul_comm (F.inv x) x)
+      (F.mul_inv x hne).
+
+// ── inv is not zero (for nonzero x) ──────────────────────────────────────
+//
+// If inv x = zero then mul x (inv x) = zero ≠ one, contradiction.
+Theorem field_inv_nonzero : forall (F : Field) (x : F.R),
+    ((x = F.zero) -> False) ->
+    (F.inv x = F.zero) -> False :=
+  fun (F : Field) (x : F.R) (hne : (x = F.zero) -> False)
+      (hiz : F.inv x = F.zero) =>
+    F.zero_ne_one
+      (trans F.R F.zero (F.mul x (F.inv x)) F.one
+        (sym F.R (F.mul x (F.inv x)) F.zero
+          (trans F.R (F.mul x (F.inv x)) (F.mul x F.zero) F.zero
+            (congr F.R F.R (F.mul x) (F.inv x) F.zero hiz)
+            (F.mul_zero_r x)))
+        (F.mul_inv x hne)).

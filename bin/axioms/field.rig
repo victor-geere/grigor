@@ -1,0 +1,10 @@
+Module Type Field := sig
+  Include Ring.
+  // Commutativity of multiplication distinguishes a field from a division ring.
+  Axiom mul_comm    : forall x y : R, mul x y = mul y x.
+  Axiom inv         : R -> R.
+  Axiom zero_ne_one : (zero = one) -> False.
+  // Right multiplicative inverse for nonzero elements.
+  // Together with mul_comm this gives the left inverse as well.
+  Axiom mul_inv     : forall x : R, ((x = zero) -> False) -> mul x (inv x) = one.
+end.

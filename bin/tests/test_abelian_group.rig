@@ -1,0 +1,53 @@
+// test_abelian_group.rig
+// Tests for bin/axioms/abelian_group.rig (which includes Group -> Monoid).
+//
+// Tests verify commutativity and that it interacts correctly with the
+// inherited structure.  A parse failure means mul_comm or inherited names
+// are absent.
+
+Import "../axioms/monoid.rig".
+Import "../axioms/groups.rig".
+Import "../axioms/abelian_group.rig".
+Import "../axioms/equality.rig".
+
+// ── Commutativity is accessible ───────────────────────────────────────────
+
+Theorem ab_comm : forall (G : AbelianGroup) (x y : G.M),
+    G.mul x y = G.mul y x :=
+  fun (G : AbelianGroup) (x y : G.M) => G.mul_comm x y.
+
+// ── Commutativity + inverse: inv x * y = y * inv x ───────────────────────
+
+Theorem ab_comm_inv : forall (G : AbelianGroup) (x y : G.M),
+    eq G.M (G.mul (G.inv x) y) (G.mul y (G.inv x)) :=
+  fun (G : AbelianGroup) (x y : G.M) =>
+    G.mul_comm (G.inv x) y.
+
+// ── In an abelian group, left and right inverses coincide ─────────────────
+//
+// mul_inv_l x = one  and  mul_inv_r x = one  (both from Group),
+// but commutativity makes them the same equation.
+// We verify: mul (inv x) x = mul x (inv x).
+Theorem ab_inv_sides : forall (G : AbelianGroup) (x : G.M),
+    eq G.M (G.mul (G.inv x) x) (G.mul x (G.inv x)) :=
+  fun (G : AbelianGroup) (x : G.M) =>
+    G.mul_comm (G.inv x) x.
+
+// ── Commutativity of the derived conjugation identity ─────────────────────
+//
+// x * y * inv x = y  (because mul_comm kills the conjugation)
+// Proof: x*y*inv(x) = y*x*inv(x) [comm], = y*(x*inv(x)) [assoc], = y*one = y.
+Theorem ab_conj_trivial : forall (G : AbelianGroup) (x y : G.M),
+    eq G.M (G.mul (G.mul x y) (G.inv x)) y :=
+  fun (G : AbelianGroup) (x y : G.M) =>
+    trans G.M (G.mul (G.mul x y) (G.inv x)) (G.mul y G.one) y
+      (trans G.M (G.mul (G.mul x y) (G.inv x)) (G.mul (G.mul y x) (G.inv x))
+        (trans G.M (G.mul (G.mul y x) (G.inv x)) (G.mul y (G.mul x (G.inv x)))
+          (trans G.M (G.mul y (G.mul x (G.inv x))) (G.mul y G.one)
+            (congr G.M G.M (G.mul y) (G.mul x (G.inv x)) G.one (G.mul_inv_r x))
+            (refl G.M (G.mul y G.one)))
+          (sym G.M (G.mul y (G.mul x (G.inv x))) (G.mul (G.mul y x) (G.inv x))
+            (G.mul_assoc y x (G.inv x))))
+        (congr G.M G.M (fun t : G.M => G.mul t (G.inv x))
+          (G.mul x y) (G.mul y x) (G.mul_comm x y)))
+      (G.mul_one_r y).

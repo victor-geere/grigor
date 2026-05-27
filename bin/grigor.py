@@ -18,6 +18,10 @@ GRIGOR_GRAMMAR = r"""
     %ignore WS
     %ignore CPP_COMMENT
 
+    // ML-style block comments (* ... *)
+    ML_COMMENT: /\(\*[\s\S]*?\*\)/
+    %ignore ML_COMMENT
+
     // Custom string pattern for file paths
     STRING: /"[^"]*"/
 
@@ -46,7 +50,7 @@ GRIGOR_GRAMMAR = r"""
     axiom_decl: "Axiom" IDENT ":" term "."
 
     // Theorem
-    theorem_decl: "Theorem" IDENT ":" term ":=" term "."
+    theorem_decl: "Theorem" IDENT binder* ":" term ":=" term "."
 
     // Definition
     definition_decl: "Definition" IDENT binder* ":" term ":=" term "."
@@ -54,10 +58,10 @@ GRIGOR_GRAMMAR = r"""
     // Module and module types (simplified)
     module_decl: "Module" IDENT (binder)* (":" module_type)? ":=" module_expr "."
     module_type_decl: "Module" "Type" IDENT (binder)* ":=" module_type_body "."
-    module_type_body: "sig" declaration* "end"   // we reuse top_decl inside sig
+    module_type_body: "sig" declaration* "end" IDENT?
     module_expr: IDENT                                         -> module_ref
                | IDENT "(" module_arg ("," module_arg)* ")"   -> module_apply
-               | "struct" declaration* "end"                   -> module_struct
+               | "struct" declaration* "End" IDENT?            -> module_struct
     module_type: IDENT
                | "functor" "(" binder ("," binder)* ")" "=>" module_type
                | "sig" declaration* "end"
@@ -77,7 +81,7 @@ GRIGOR_GRAMMAR = r"""
           | implicit_binder
     
     simple_binder: IDENT
-    typed_binder: IDENT ":" term
+    typed_binder: IDENT+ ":" term
                 | "(" IDENT+ ":" term ")"
     implicit_binder: "{" IDENT "}"
 
@@ -87,9 +91,11 @@ GRIGOR_GRAMMAR = r"""
     // We'll use a few levels.
     ?term: forall_term
          | fun_term
+         | arrow_term "=" arrow_term   -> eq_term
          | arrow_term
 
-    ?arrow_term: app_term ("->" arrow_term)?
+    ?arrow_term: app_term "->" term    -> arrow_term
+               | app_term
     ?app_term: atom_term+
 
     sort: "Prop"               -> prop_sort
@@ -99,7 +105,7 @@ GRIGOR_GRAMMAR = r"""
 
     ?atom_term: "(" term ")"
               | sort
-              | "let" IDENT binder* ":=" term "in" term
+              | "let" IDENT binder* (":" term)? ":=" term "in" term
               | "match" term ("as" IDENT)? ("in" term)? ("return" term)? "with" ("|" pattern "=>" term)+ "end"
               | "fix" IDENT binder+ "{" "struct" IDENT "}" ":=" term
               | "cofix" IDENT binder+ ":=" term
@@ -109,7 +115,8 @@ GRIGOR_GRAMMAR = r"""
               | "pack" term term
               | "unpack" term "as" "(" IDENT "," IDENT ")" "in" term
               | "explode" term term
-              | IDENT   // variable or constant (including refl, J, etc.)
+              | DOTTED_IDENT  // qualified names like G.M, Ri.R
+              | IDENT         // variable or constant (including refl, J, etc.)
 
     ?forall_term: "forall" binder+ "," term
     ?fun_term: "fun" binder+ "=>" term
@@ -118,6 +125,9 @@ GRIGOR_GRAMMAR = r"""
     pattern: IDENT                    // variable
            | "(" IDENT "," IDENT ")"  // pair
            | IDENT pattern+           // constructor pattern
+
+    // Qualified identifiers (module field access like G.M, Ri.R)
+    DOTTED_IDENT: /[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)+/
 
     // Identifier
     IDENT: /[a-zA-Z_][a-zA-Z0-9_]*/
@@ -135,6 +145,10 @@ class ASTBuilder(Transformer):
 
     def IDENT(self, tok):
         return ("ident", str(tok))
+
+    def DOTTED_IDENT(self, tok):
+        parts = str(tok).split('.')
+        return ("dotted_ident", parts)
 
     def term(self, children):
         # If only one child, return it; otherwise list?
@@ -171,10 +185,12 @@ class ASTBuilder(Transformer):
         body = children[-1]
         return ("fun", binders, body)
 
-    # arrow: "?" rule is only called when both sides are present;
-    # anonymous "->" is filtered so children = [left, right]
+    # arrow: children = [left, right]
     def arrow_term(self, children):
         return ("arrow", children[0], children[1])
+
+    def eq_term(self, children):
+        return ("eq", children[0], children[1])
 
     # application
     def app_term(self, children):
@@ -291,7 +307,16 @@ class ASTBuilder(Transformer):
     # theorem, axiom, definition
     def theorem_decl(self, children):
         # after filtering: [name, *binders, type, body]
-        return ("theorem", children[0][1], children[-2], children[-1])
+        name = children[0][1]
+        binders = []
+        i = 1
+        while i < len(children) and self._is_binder(children[i]):
+            binders.append(children[i])
+            i += 1
+        binders = self._expand_binders(binders)
+        typ = children[i]
+        body = children[i + 1]
+        return ("theorem", name, binders, typ, body)
     def axiom_decl(self, children):
         # after filtering: [name, type]
         return ("axiom", children[0][1], children[1])
@@ -382,9 +407,11 @@ class TypeChecker:
         if kind == "axiom":
             name, typ = decl[1], decl[2]
             self.env[name] = typ
-        elif kind == "theorem" or kind == "definition":
+        elif kind == "theorem":
+            name, _, typ, body = decl[1], decl[2], decl[3], decl[4]
+            self.env[name] = typ
+        elif kind == "definition":
             name, typ, body = decl[1], decl[2], decl[3]
-            # For simplicity, assume type is correct
             self.env[name] = typ
         elif kind == "inductive":
             # Add type constructor and constructors with their types
@@ -534,7 +561,7 @@ def load_and_check(filepath, checker=None, loaded=None):
         return True  # already loaded
     loaded.add(abs_path)
     
-    parser = Lark(GRIGOR_GRAMMAR, parser="lalr", transformer=ASTBuilder())
+    parser = Lark(GRIGOR_GRAMMAR, parser="earley", lexer="basic", ambiguity="resolve")
     try:
         with open(abs_path) as f:
             src = f.read()
@@ -542,7 +569,8 @@ def load_and_check(filepath, checker=None, loaded=None):
         print(f"error: {e}")
         return False
     try:
-        tree = parser.parse(src)
+        tree_raw = parser.parse(src)
+        tree = ASTBuilder().transform(tree_raw)
     except Exception as e:
         print(f"parse error in {filepath}:\n  {e}")
         return False
@@ -578,7 +606,7 @@ def main():
         sys.exit(0 if ok else 1)
 
     # Build parser
-    parser = Lark(GRIGOR_GRAMMAR, parser="lalr", transformer=ASTBuilder())
+    parser = Lark(GRIGOR_GRAMMAR, parser="earley", ambiguity="resolve")
     # Example input (a simple module)
     test_input = """
     Module Type NAT_ARITH := sig
@@ -591,7 +619,8 @@ def main():
     """
     # Parse
     try:
-        tree = parser.parse(test_input)
+        tree_raw = parser.parse(test_input)
+        tree = ASTBuilder().transform(tree_raw)
         print("Parse successful!")
         print("AST:", tree.pretty() if hasattr(tree, 'pretty') else tree)
     except Exception as e:

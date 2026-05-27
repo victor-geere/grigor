@@ -1,0 +1,4 @@
+Module Type AbelianGroup := sig
+  Include Group.
+  Axiom mul_comm : forall x y : M, mul x y = mul y x.
+end.

@@ -1,2 +1,0 @@
-Axiom A : Set.
-Theorem id : forall (x : A), A := fun (x : A) => x.

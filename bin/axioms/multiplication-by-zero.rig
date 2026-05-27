@@ -1,29 +1,149 @@
-Theorem mul_zero (Ri : Ring) : forall x : Ri.R, Ri.mul x Ri.zero = Ri.zero :=
+// multiplication-by-zero.rig — Theorem: in any ring, x * 0 = 0.
+//
+// Strategy (let a abbreviate x*0 throughout):
+//   step1  : 0 = 0+0                         [sym (add_zero_l 0)]
+//   step2  : a = x*(0+0)                     [congr (mul x) step1]
+//   step3  : x*(0+0) = a+a                   [mul_add_distr_l]
+//   step4  : a = a+a                         [trans step2 step3]
+//   step5  : a+0 = a+a                       [trans (add_zero_r a) step4]
+//   lhs    : neg_a+(a+0) = 0                 [sym assoc; congr add_neg_l; add_zero_l 0]
+//   rhs    : neg_a+(a+a) = a                 [sym assoc; congr add_neg_l; add_zero_l a]
+//   cancel : 0 = a                           [sym lhs; congr (add neg_a) step5; rhs]
+//   result : a = 0                           [sym cancel]
+
+Import "equality.rig".
+Import "rings.rig".
+
+Theorem mul_zero (Ri : Ring) : forall x : Ri.R, eq Ri.R (Ri.mul x Ri.zero) Ri.zero :=
   fun (Ri : Ring) (x : Ri.R) =>
-    let h1 : Ri.mul x Ri.zero = Ri.add (Ri.mul x Ri.zero) Ri.zero :=
-      sym Ri.R (Ri.add (Ri.mul x Ri.zero) Ri.zero) (Ri.mul x Ri.zero)
-        (Ri.add_zero_l (Ri.mul x Ri.zero))
+
+    // ── step1 : 0 = 0 + 0 ──────────────────────────────────────────────
+    // add_zero_l 0 : 0+0 = 0.  sym flips to 0 = 0+0.
+    let step1 : eq Ri.R Ri.zero (Ri.add Ri.zero Ri.zero) :=
+      sym Ri.R (Ri.add Ri.zero Ri.zero) Ri.zero
+        (Ri.add_zero_l Ri.zero)
     in
-    let h2 : Ri.mul x Ri.zero = Ri.mul x (Ri.add Ri.zero Ri.zero) :=
-      J Ri.R Ri.zero (fun t _ => Ri.mul x Ri.zero = Ri.mul x t)
-        (refl Ri.R (Ri.mul x Ri.zero))
-        (Ri.add Ri.zero Ri.zero)
-        (sym Ri.R (Ri.add Ri.zero Ri.zero) Ri.zero (Ri.add_zero_l Ri.zero))
+
+    // ── step2 : x*0 = x*(0+0) ──────────────────────────────────────────
+    // congruence: apply (mul x) to both sides of step1.
+    let step2 : eq Ri.R (Ri.mul x Ri.zero) (Ri.mul x (Ri.add Ri.zero Ri.zero)) :=
+      congr Ri.R Ri.R (Ri.mul x) Ri.zero (Ri.add Ri.zero Ri.zero) step1
     in
-    let h3 : Ri.mul x (Ri.add Ri.zero Ri.zero) = Ri.add (Ri.mul x Ri.zero) (Ri.mul x Ri.zero) :=
+
+    // ── step3 : x*(0+0) = x*0 + x*0 ───────────────────────────────────
+    // left distributivity directly.
+    let step3 : eq Ri.R (Ri.mul x (Ri.add Ri.zero Ri.zero))
+                        (Ri.add (Ri.mul x Ri.zero) (Ri.mul x Ri.zero)) :=
       Ri.mul_add_distr_l x Ri.zero Ri.zero
     in
-    let h4 : Ri.add (Ri.mul x Ri.zero) Ri.zero = Ri.add (Ri.mul x Ri.zero) (Ri.mul x Ri.zero) :=
+
+    // ── step4 : x*0 = x*0 + x*0 ────────────────────────────────────────
+    let step4 : eq Ri.R (Ri.mul x Ri.zero)
+                        (Ri.add (Ri.mul x Ri.zero) (Ri.mul x Ri.zero)) :=
       trans Ri.R (Ri.mul x Ri.zero)
-                (Ri.mul x (Ri.add Ri.zero Ri.zero))
-                (Ri.add (Ri.mul x Ri.zero) (Ri.mul x Ri.zero))
-        (trans Ri.R (Ri.mul x Ri.zero) (Ri.mul x Ri.zero) (Ri.mul x (Ri.add Ri.zero Ri.zero))
-          (refl Ri.R (Ri.mul x Ri.zero)) h2)
-        h3
+                 (Ri.mul x (Ri.add Ri.zero Ri.zero))
+                 (Ri.add (Ri.mul x Ri.zero) (Ri.mul x Ri.zero))
+        step2 step3
     in
-    (* Cancel an addend: from h4 we get mul x zero = zero *)
-    (* We use the additive group law: if a + b = a + c then b = c *)
-    (* This would require a lemma, omitted for brevity; we just assume it *)
-    (* In a full development one would prove a `add_left_cancel` lemma. *)
-    (* For the purpose of this demonstration we stop here and admit the final step. *)
-    Ri.zero.  (* dummy, the real proof would complete with cancellation *)
+
+    // ── step5 : x*0 + 0 = x*0 + x*0 ───────────────────────────────────
+    // add_zero_r a : a+0 = a.  Chain with step4 to get a+0 = a+a.
+    let step5 : eq Ri.R (Ri.add (Ri.mul x Ri.zero) Ri.zero)
+                        (Ri.add (Ri.mul x Ri.zero) (Ri.mul x Ri.zero)) :=
+      trans Ri.R (Ri.add (Ri.mul x Ri.zero) Ri.zero)
+                 (Ri.mul x Ri.zero)
+                 (Ri.add (Ri.mul x Ri.zero) (Ri.mul x Ri.zero))
+        (Ri.add_zero_r (Ri.mul x Ri.zero))
+        step4
+    in
+
+    // ── Left-cancellation (proved inline) ──────────────────────────────
+    // We have step5 : a+0 = a+a.  We want to cancel the leading a.
+    // Add neg(a) on the left of both sides and simplify.
+    //
+    // lhs_eq_zero : neg_a + (a + 0) = 0
+    //   neg_a + (a + 0)
+    //     ─[sym (add_assoc neg_a a 0)]─► (neg_a + a) + 0
+    //     ─[congr (fun t => t+0) (add_neg_l a)]─► 0 + 0
+    //     ─[add_zero_l 0]─► 0
+    let lhs_eq_zero :
+        eq Ri.R (Ri.add (Ri.neg (Ri.mul x Ri.zero))
+                        (Ri.add (Ri.mul x Ri.zero) Ri.zero))
+                Ri.zero :=
+      trans Ri.R
+        (Ri.add (Ri.neg (Ri.mul x Ri.zero)) (Ri.add (Ri.mul x Ri.zero) Ri.zero))
+        (Ri.add (Ri.add (Ri.neg (Ri.mul x Ri.zero)) (Ri.mul x Ri.zero)) Ri.zero)
+        Ri.zero
+        (sym Ri.R
+          (Ri.add (Ri.add (Ri.neg (Ri.mul x Ri.zero)) (Ri.mul x Ri.zero)) Ri.zero)
+          (Ri.add (Ri.neg (Ri.mul x Ri.zero)) (Ri.add (Ri.mul x Ri.zero) Ri.zero))
+          (Ri.add_assoc (Ri.neg (Ri.mul x Ri.zero)) (Ri.mul x Ri.zero) Ri.zero))
+        (trans Ri.R
+          (Ri.add (Ri.add (Ri.neg (Ri.mul x Ri.zero)) (Ri.mul x Ri.zero)) Ri.zero)
+          (Ri.add Ri.zero Ri.zero)
+          Ri.zero
+          (congr Ri.R Ri.R
+            (fun t : Ri.R => Ri.add t Ri.zero)
+            (Ri.add (Ri.neg (Ri.mul x Ri.zero)) (Ri.mul x Ri.zero))
+            Ri.zero
+            (Ri.add_neg_l (Ri.mul x Ri.zero)))
+          (Ri.add_zero_l Ri.zero))
+    in
+
+    // rhs_eq_a : neg_a + (a + a) = a
+    //   neg_a + (a + a)
+    //     ─[sym (add_assoc neg_a a a)]─► (neg_a + a) + a
+    //     ─[congr (fun t => t+a) (add_neg_l a)]─► 0 + a
+    //     ─[add_zero_l a]─► a
+    let rhs_eq_a :
+        eq Ri.R (Ri.add (Ri.neg (Ri.mul x Ri.zero))
+                        (Ri.add (Ri.mul x Ri.zero) (Ri.mul x Ri.zero)))
+                (Ri.mul x Ri.zero) :=
+      trans Ri.R
+        (Ri.add (Ri.neg (Ri.mul x Ri.zero)) (Ri.add (Ri.mul x Ri.zero) (Ri.mul x Ri.zero)))
+        (Ri.add (Ri.add (Ri.neg (Ri.mul x Ri.zero)) (Ri.mul x Ri.zero)) (Ri.mul x Ri.zero))
+        (Ri.mul x Ri.zero)
+        (sym Ri.R
+          (Ri.add (Ri.add (Ri.neg (Ri.mul x Ri.zero)) (Ri.mul x Ri.zero)) (Ri.mul x Ri.zero))
+          (Ri.add (Ri.neg (Ri.mul x Ri.zero)) (Ri.add (Ri.mul x Ri.zero) (Ri.mul x Ri.zero)))
+          (Ri.add_assoc (Ri.neg (Ri.mul x Ri.zero)) (Ri.mul x Ri.zero) (Ri.mul x Ri.zero)))
+        (trans Ri.R
+          (Ri.add (Ri.add (Ri.neg (Ri.mul x Ri.zero)) (Ri.mul x Ri.zero)) (Ri.mul x Ri.zero))
+          (Ri.add Ri.zero (Ri.mul x Ri.zero))
+          (Ri.mul x Ri.zero)
+          (congr Ri.R Ri.R
+            (fun t : Ri.R => Ri.add t (Ri.mul x Ri.zero))
+            (Ri.add (Ri.neg (Ri.mul x Ri.zero)) (Ri.mul x Ri.zero))
+            Ri.zero
+            (Ri.add_neg_l (Ri.mul x Ri.zero)))
+          (Ri.add_zero_l (Ri.mul x Ri.zero)))
+    in
+
+    // cancel : 0 = x*0
+    //   0
+    //     ─[sym lhs_eq_zero]─► neg_a + (a + 0)
+    //     ─[congr (add neg_a) step5]─► neg_a + (a + a)
+    //     ─[rhs_eq_a]─► a
+    let cancel : eq Ri.R Ri.zero (Ri.mul x Ri.zero) :=
+      trans Ri.R
+        Ri.zero
+        (Ri.add (Ri.neg (Ri.mul x Ri.zero)) (Ri.add (Ri.mul x Ri.zero) (Ri.mul x Ri.zero)))
+        (Ri.mul x Ri.zero)
+        (trans Ri.R
+          Ri.zero
+          (Ri.add (Ri.neg (Ri.mul x Ri.zero)) (Ri.add (Ri.mul x Ri.zero) Ri.zero))
+          (Ri.add (Ri.neg (Ri.mul x Ri.zero)) (Ri.add (Ri.mul x Ri.zero) (Ri.mul x Ri.zero)))
+          (sym Ri.R
+            (Ri.add (Ri.neg (Ri.mul x Ri.zero)) (Ri.add (Ri.mul x Ri.zero) Ri.zero))
+            Ri.zero
+            lhs_eq_zero)
+          (congr Ri.R Ri.R
+            (Ri.add (Ri.neg (Ri.mul x Ri.zero)))
+            (Ri.add (Ri.mul x Ri.zero) Ri.zero)
+            (Ri.add (Ri.mul x Ri.zero) (Ri.mul x Ri.zero))
+            step5))
+        rhs_eq_a
+    in
+
+    // ── Final: sym cancel gives x*0 = 0 ────────────────────────────────
+    sym Ri.R Ri.zero (Ri.mul x Ri.zero) cancel.

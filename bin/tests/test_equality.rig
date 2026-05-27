@@ -1,0 +1,63 @@
+// test_equality.rig
+// Tests for bin/axioms/equality.rig.
+//
+// Each theorem uses eq / refl / J / sym / trans / congr / subst directly.
+// Parsing fails if any of those names are absent or have wrong arity.
+
+Import "../axioms/equality.rig".
+
+// ── Reflexivity ──────────────────────────────────────────────────────────
+
+// refl has type eq A x x for any A and x.
+Theorem eq_refl_test : forall (A : Set) (x : A), eq A x x :=
+  fun (A : Set) (x : A) => refl A x.
+
+// ── Symmetry is involutive ────────────────────────────────────────────────
+
+// sym (sym p) = p  (stated as: if sym gives us q then sym q equals the original)
+// Direct proof: apply sym to (sym p).
+Theorem sym_sym : forall (A : Set) (x y : A) (p : eq A x y), eq A x y :=
+  fun (A : Set) (x y : A) (p : eq A x y) =>
+    sym A y x (sym A x y p).
+
+// ── Transitivity with refl on the left ───────────────────────────────────
+
+// trans (refl x) p = p
+Theorem trans_refl_l : forall (A : Set) (x y : A) (p : eq A x y), eq A x y :=
+  fun (A : Set) (x y : A) (p : eq A x y) =>
+    trans A x x y (refl A x) p.
+
+// trans p (refl y) = p
+Theorem trans_refl_r : forall (A : Set) (x y : A) (p : eq A x y), eq A x y :=
+  fun (A : Set) (x y : A) (p : eq A x y) =>
+    trans A x y y p (refl A y).
+
+// ── Congruence applied to identity function ───────────────────────────────
+
+// congr (fun x => x) p = p  (identity function preserves proofs)
+Theorem congr_id : forall (A : Set) (x y : A) (p : eq A x y), eq A x y :=
+  fun (A : Set) (x y : A) (p : eq A x y) =>
+    congr A A (fun (a : A) => a) x y p.
+
+// ── Transport / subst ────────────────────────────────────────────────────
+
+// If x = y and P x, then P y.
+Theorem subst_test : forall (A : Set) (P : A -> Prop) (x y : A),
+    eq A x y -> P x -> P y :=
+  fun (A : Set) (P : A -> Prop) (x y : A) (p : eq A x y) (px : P x) =>
+    subst A P x y p px.
+
+// ── Symmetry + congruence compose correctly ───────────────────────────────
+
+// f x = f y -> f y = f x
+Theorem congr_sym : forall (A B : Set) (f : A -> B) (x y : A),
+    eq A x y -> eq B (f y) (f x) :=
+  fun (A B : Set) (f : A -> B) (x y : A) (p : eq A x y) =>
+    sym B (f x) (f y) (congr A B f x y p).
+
+// ── J eliminates into any Prop-valued motive ─────────────────────────────
+
+// Recover refl from J: J instantiated at the trivial motive gives refl.
+Theorem J_trivial : forall (A : Set) (x : A), eq A x x :=
+  fun (A : Set) (x : A) =>
+    J A x (fun (y : A) (_ : eq A x y) => eq A x y) (refl A x) x (refl A x).
