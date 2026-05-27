@@ -21,7 +21,8 @@ Grigor is a proof language based on the Calculus of Inductive Constructions (CIC
 
 - **Identifiers** consist of a letter or underscore followed by any mix of letters, digits, and underscores: `/[a-zA-Z_][a-zA-Z0-9_]*/`
 - **Reserved words:** `Prop`, `Set`, `Type`, `fun`, `forall`, `match`, `with`, `end`, `as`, `in`, `return`, `fix`, `cofix`, `let`, `refl`, `J`, `fst`, `snd`, `pack`, `unpack`, `explode`, `Inductive`, `Fixpoint`, `Axiom`, `Theorem`, `Definition`, `Module`, `Include`, `Import`, `struct`, `sig`, `functor`
-- **Comments:** `// line comment` (rest of line is ignored)
+- **Qualified identifiers** use dot notation: `/[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)+/` — e.g. `G.M`, `Ri.R`
+- **Comments:** `// line comment` or `(* block comment *)` (both are ignored)
 - **Punctuation:** `.` terminates every top-level declaration, `:=` introduces a body, `:` introduces a type annotation
 
 ---
@@ -33,6 +34,7 @@ Grigor is a proof language based on the Calculus of Inductive Constructions (CIC
 ```
 term ::= forall binder+ , term           -- dependent product
        | fun binder+ => term             -- lambda abstraction
+       | app_term = app_term             -- propositional equality (surface syntax)
        | app_term -> term                -- non-dependent function type (right-associative)
        | app_term                        -- application (left-associative)
 
@@ -41,17 +43,14 @@ app_term ::= atom+                       -- juxtaposition = application
 atom ::= ( term )                        -- grouping
        | Prop | Set | Type               -- universes
        | Type ( ident )                  -- indexed universe
-       | ident                           -- variable or constant
+       | dotted.ident                    -- qualified name (e.g. G.M, Ri.R)
+       | ident                           -- variable or constant (incl. refl, J)
        | ( term , term )                 -- dependent pair introduction
-       | fst atom                        -- first projection
-       | snd atom                        -- second projection
-       | pack atom atom                  -- existential introduction
-       | refl atom                       -- reflexivity proof
-       | J atom atom atom atom atom      -- equality eliminator
-       | explode atom atom               -- ex falso
-       | fun binder+ => term             -- lambda (as atom only inside parens)
-       | forall binder+ , term           -- product (as atom only inside parens)
-       | let ident binder* := term in term
+       | fst term                        -- first projection
+       | snd term                        -- second projection
+       | pack term term                  -- existential introduction
+       | explode term term               -- ex falso
+       | let ident binder* ( : term )? := term in term
        | match term (as ident)? (in term)? (return term)?
            with ( | pattern => term )+ end
        | fix ident binder+ { struct ident } := term
@@ -63,7 +62,8 @@ atom ::= ( term )                        -- grouping
 
 ```
 binder ::= ident                    -- untyped variable
-         | ( ident : term )         -- typed variable
+         | ident+ : term            -- typed (multiple names share one type, unparenthesized)
+         | ( ident+ : term )        -- typed variable(s), parenthesized
          | { ident }                -- implicit (marked but not inferred)
 ```
 
@@ -83,25 +83,28 @@ Every declaration ends with a `.`
 decl ::= Inductive ident binder* : term := ( | ident : term )* .
        | Fixpoint ident binder+ { struct ident } : term := term .
        | Axiom ident : term .
-       | Theorem ident : term := term .
+       | Theorem ident binder* : term := term .
        | Definition ident binder* : term := term .
        | Module ident binder* ( : module_type )? := module_expr .
-       | Module Type ident binder* := sig decl* end .
+       | Module Type ident binder* := sig decl* end ident? .
        | Include module_expr .
-       | Import module_expr .
+       | Import import_source .?
+
+import_source ::= "filepath.rig"    -- file path (quoted string)
+                | module_expr        -- module name
 ```
 
 ### 2.5 Module expressions and types
 
 ```
-module_expr ::= ident                                   -- module reference
-              | ident ( module_arg (, module_arg)* )    -- functor application
-              | struct decl* end                         -- inline structure
+module_expr ::= ident                                     -- module reference
+              | ident ( module_arg (, module_arg)* )      -- functor application
+              | struct decl* End ident?                    -- inline structure (capital End, optional name)
 
-module_type ::= ident                                   -- named signature
+module_type ::= ident                                     -- named signature
               | functor ( binder (, binder)* ) => module_type
-              | sig decl* end                            -- inline signature
-              | module_type with ident := term           -- signature refinement
+              | sig decl* end                              -- inline signature
+              | module_type with ident := term             -- signature refinement
 
 module_arg ::= term
 ```
@@ -275,8 +278,9 @@ Applies functor `F` to arguments `A` and `B`, yielding a new module with the ins
 ### 6.4 `Include` and `Import`
 
 ```
-Include M.    // copies all declarations from M into the current scope
-Import M.     // makes M's names directly visible without the M. prefix
+Include M.              // copies all declarations from M into the current scope
+Import M.               // makes M's names directly visible without the M. prefix
+Import "path/file.rig"  // load and incorporate a source file (no trailing dot required)
 ```
 
 ### 6.5 Signature refinement (`with`)
@@ -348,7 +352,7 @@ end.
 
 Module PeanoArith : NAT_ARITH := struct
   Axiom zero : Prop.
-end.
+End PeanoArith.
 ```
 
 ### 8.4 Dependent pairs
@@ -368,11 +372,12 @@ Definition swap (A : Type) (B : Type) (p : A) : B :=
 The reference implementation requires Python 3 and the `lark` parsing library.
 
 ```bash
-cd bin
-python3 grigor.py
+python3 bin/grigor.py myfile.rig
 ```
 
-To check a Grigor source file, invoke the parser with your file as input (see `bin/grigor.py` for the entry point). The checker reads declarations top-to-bottom, builds the global environment, and type-checks every theorem. If a proof term does not match its declared type the checker prints an error and stops.
+Source files use the `.rig` extension. The checker reads declarations top-to-bottom, builds the global environment, and type-checks every theorem. If a proof term does not match its declared type the checker prints an error and exits with status 1. On success it prints `OK  <file>  (<n> declaration(s))`.
+
+Running without arguments starts an interactive demo that parses and checks a small built-in example.
 
 **Dependencies** (see `bin/requirements.txt`):
 ```

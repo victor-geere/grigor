@@ -1,0 +1,78 @@
+// test_group.rig
+// Tests for bin/axioms/groups.rig (which includes Monoid).
+//
+// Each theorem uses at least one of: inv, mul_inv_l, mul_inv_r (the Group
+// additions) plus inherited Monoid names.  A parse failure means a Group
+// export is missing or has wrong arity.
+
+Import "../axioms/monoid.rig".
+Import "../axioms/groups.rig".
+Import "../axioms/equality.rig".
+
+// ── Inverse axioms are accessible ────────────────────────────────────────
+
+Theorem group_inv_l : forall (G : Group) (x : G.M),
+    G.mul (G.inv x) x = G.one :=
+  fun (G : Group) (x : G.M) => G.mul_inv_l x.
+
+Theorem group_inv_r : forall (G : Group) (x : G.M),
+    G.mul x (G.inv x) = G.one :=
+  fun (G : Group) (x : G.M) => G.mul_inv_r x.
+
+// ── Inverse of the identity is the identity ───────────────────────────────
+//
+// inv one = one
+// Proof: mul (inv one) one = one (left inverse), and mul (inv one) one = inv one
+//        (right identity).  So inv one = one.
+Theorem group_inv_one : forall (G : Group),
+    G.inv G.one = G.one :=
+  fun (G : Group) =>
+    trans G.M (G.inv G.one) (G.mul (G.inv G.one) G.one) G.one
+      (sym G.M (G.mul (G.inv G.one) G.one) (G.inv G.one) (G.mul_one_r (G.inv G.one)))
+      (G.mul_inv_l G.one).
+
+// ── Inverse is unique ────────────────────────────────────────────────────
+//
+// If mul y x = one then y = inv x.
+// Proof uses associativity + right inverse + left identity.
+Theorem group_inv_unique : forall (G : Group) (x y : G.M),
+    G.mul y x = G.one -> eq G.M y (G.inv x) :=
+  fun (G : Group) (x y : G.M) (h : G.mul y x = G.one) =>
+    trans G.M y (G.mul y (G.mul x (G.inv x))) (G.inv x)
+      // y = y * (x * inv x)   because x * inv x = one and right id
+      (trans G.M y (G.mul y G.one) (G.mul y (G.mul x (G.inv x)))
+        (sym G.M (G.mul y G.one) y (G.mul_one_r y))
+        (sym G.M (G.mul y (G.mul x (G.inv x))) (G.mul y G.one)
+          (congr G.M G.M (G.mul y) (G.mul x (G.inv x)) G.one (G.mul_inv_r x))))
+      // y * (x * inv x) = (y * x) * inv x   by assoc, then = one * inv x = inv x
+      (trans G.M (G.mul y (G.mul x (G.inv x))) (G.mul (G.mul y x) (G.inv x)) (G.inv x)
+        (sym G.M (G.mul (G.mul y x) (G.inv x)) (G.mul y (G.mul x (G.inv x)))
+          (G.mul_assoc y x (G.inv x)))
+        (trans G.M (G.mul (G.mul y x) (G.inv x)) (G.mul G.one (G.inv x)) (G.inv x)
+          (congr G.M G.M (fun t : G.M => G.mul t (G.inv x)) (G.mul y x) G.one h)
+          (G.mul_one_l (G.inv x)))).
+
+// ── Left cancellation ─────────────────────────────────────────────────────
+//
+// mul a b = mul a c -> b = c
+// Proof: left-multiply both sides by inv a.
+Theorem group_left_cancel : forall (G : Group) (a b c : G.M),
+    G.mul a b = G.mul a c -> eq G.M b c :=
+  fun (G : Group) (a b c : G.M) (h : G.mul a b = G.mul a c) =>
+    trans G.M b (G.mul (G.mul (G.inv a) a) b) c
+      (sym G.M (G.mul (G.mul (G.inv a) a) b) b
+        (trans G.M (G.mul (G.mul (G.inv a) a) b) (G.mul G.one b) b
+          (congr G.M G.M (fun t : G.M => G.mul t b) (G.mul (G.inv a) a) G.one
+            (G.mul_inv_l a))
+          (G.mul_one_l b)))
+      (trans G.M (G.mul (G.mul (G.inv a) a) b) (G.mul (G.inv a) (G.mul a b))
+          (trans G.M (G.mul (G.inv a) (G.mul a b)) (G.mul (G.inv a) (G.mul a c))
+            (congr G.M G.M (G.mul (G.inv a)) (G.mul a b) (G.mul a c) h)
+            (trans G.M (G.mul (G.inv a) (G.mul a c)) (G.mul (G.mul (G.inv a) a) c) c
+              (G.mul_assoc (G.inv a) a c)
+              (trans G.M (G.mul (G.mul (G.inv a) a) c) (G.mul G.one c) c
+                (congr G.M G.M (fun t : G.M => G.mul t c) (G.mul (G.inv a) a) G.one
+                  (G.mul_inv_l a))
+                (G.mul_one_l c))))
+          (sym G.M (G.mul (G.inv a) (G.mul a b)) (G.mul (G.mul (G.inv a) a) b)
+            (G.mul_assoc (G.inv a) a b))).

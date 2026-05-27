@@ -1,7 +1,0 @@
-Axiom eq : forall (A : Set) (x y : A), Prop.
-Axiom refl : forall (A : Set) (x : A), eq A x x.
-Axiom J : forall (A : Set) (x : A) (P : forall y : A, eq A x y -> Set), P x (refl A x) -> forall (y : A) (e : eq A x y), P y e.
-
-Theorem sym : forall (A : Set) (x y : A), eq A x y -> eq A y x :=
-  fun (A : Set) (x y : A) (p : eq A x y) =>
-    J A x (fun (z : A) (e : eq A x z) => eq A z x) (refl A x) y p.

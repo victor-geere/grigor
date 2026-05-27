@@ -1,3 +1,0 @@
-Axiom A : Set.
-Axiom x : A.
-Theorem simple : A := x.

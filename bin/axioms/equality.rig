@@ -1,6 +1,34 @@
-Module Equality := struct
-  Inductive eq (A : Set) (x : A) : forall y : A, Prop :=
-    | refl : eq A x x.
-  Axiom J : forall (A : Set) (x : A) (P : forall y : A, eq A x y -> Set),
-            P x (refl A x) -> forall (y : A) (e : eq A x y), P y e.
-End Equality.
+// equality.rig — propositional equality, eliminator, and basic consequences.
+//
+// Declarations are at the top level so that importing files can use
+// eq, refl, J, sym, trans, congr, subst without qualification.
+
+Inductive eq (A : Set) (x : A) : forall y : A, Prop :=
+  | refl : eq A x x.
+
+// Path induction (Paulin-Mohring J).
+// P ranges over Prop so that Prop-valued motives (the common case) are covered.
+// A Set-valued variant would require a separate axiom; it is not needed here
+// because sym / trans / congr / subst all use Prop-valued motives.
+Axiom J : forall (A : Set) (x : A) (P : forall y : A, eq A x y -> Prop),
+          P x (refl A x) -> forall (y : A) (e : eq A x y), P y e.
+
+// Symmetry: x = y -> y = x.
+Theorem sym : forall (A : Set) (x y : A), eq A x y -> eq A y x :=
+  fun (A : Set) (x y : A) (p : eq A x y) =>
+    J A x (fun (z : A) (_ : eq A x z) => eq A z x) (refl A x) y p.
+
+// Transitivity: x = y -> y = z -> x = z.
+Theorem trans : forall (A : Set) (x y z : A), eq A x y -> eq A y z -> eq A x z :=
+  fun (A : Set) (x y z : A) (p : eq A x y) (q : eq A y z) =>
+    J A y (fun (w : A) (_ : eq A y w) => eq A x w) p z q.
+
+// Congruence: f respects equality.
+Theorem congr : forall (A B : Set) (f : A -> B) (x y : A), eq A x y -> eq B (f x) (f y) :=
+  fun (A B : Set) (f : A -> B) (x y : A) (p : eq A x y) =>
+    J A x (fun (z : A) (_ : eq A x z) => eq B (f x) (f z)) (refl B (f x)) y p.
+
+// Transport (substitution): equal elements satisfy the same predicates.
+Theorem subst : forall (A : Set) (P : A -> Prop) (x y : A), eq A x y -> P x -> P y :=
+  fun (A : Set) (P : A -> Prop) (x y : A) (p : eq A x y) (px : P x) =>
+    J A x (fun (z : A) (_ : eq A x z) => P z) px y p.

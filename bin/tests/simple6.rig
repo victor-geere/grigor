@@ -1,3 +1,0 @@
-Axiom eq : Set -> Set -> Prop.
-
-Axiom J : forall (A : Set) (x : A), Set.

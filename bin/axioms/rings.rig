@@ -1,30 +1,26 @@
-Theorem inv_unique (G : Group) : forall x y : G.M,
-  G.mul y x = G.one -> y = G.inv x :=
-  fun (G : Group) (x y : G.M) (h : G.mul y x = G.one) =>
-    let lem1 : G.mul y (G.mul x (G.inv x)) = G.mul (G.mul y x) (G.inv x) :=
-      sym G.M (G.mul (G.mul y x) (G.inv x)) (G.mul y (G.mul x (G.inv x)))
-        (G.mul_assoc y x (G.inv x))
-    in
-    let lem2 : G.mul y (G.mul x (G.inv x)) = G.inv x :=
-      trans G.M (G.mul y (G.mul x (G.inv x)))
-                (G.mul y G.one)
-                (G.inv x)
-        ( (* substitution along mul_inv_r x *) 
-          J G.M (G.mul x (G.inv x)) (fun t _ => G.mul y t = G.inv x)
-            (sym G.M (G.mul y G.one) y (G.mul_one_r y))
-            G.one (G.mul_inv_r x)
-        )
-        (sym G.M (G.inv x) (G.mul y G.one) (G.mul_one_r y))
-    in
-    trans G.M y (G.mul (G.mul y x) (G.inv x)) (G.inv x)
-      (trans G.M y (G.mul y (G.mul x (G.inv x))) (G.mul (G.mul y x) (G.inv x))
-        (sym G.M (G.mul y (G.mul x (G.inv x))) y lem2)
-        (sym G.M (G.mul (G.mul y x) (G.inv x)) (G.mul y (G.mul x (G.inv x))) lem1)
-      )
-      (trans G.M (G.mul (G.mul y x) (G.inv x)) (G.mul G.one (G.inv x)) (G.inv x)
-        (J G.M (G.mul y x) (fun t _ => G.mul t (G.inv x) = G.inv x)
-          (G.mul_one_l (G.inv x))
-          G.one h
-        )
-        (G.mul_one_l (G.inv x))
-      ).
+Module Type Ring := sig
+  Axiom R    : Set.
+  Axiom add  : R -> R -> R.
+  Axiom zero : R.
+  Axiom neg  : R -> R.
+  Axiom mul  : R -> R -> R.
+  Axiom one  : R.
+
+  // Additive abelian group
+  Axiom add_assoc  : forall x y z : R, add (add x y) z = add x (add y z).
+  Axiom add_zero_l : forall x : R, add zero x = x.
+  Axiom add_zero_r : forall x : R, add x zero = x.
+  Axiom add_comm   : forall x y : R, add x y = add y x.
+  Axiom add_neg_l  : forall x : R, add (neg x) x = zero.
+  Axiom add_neg_r  : forall x : R, add x (neg x) = zero.
+
+  // Multiplicative monoid
+  Axiom mul_assoc  : forall x y z : R, mul (mul x y) z = mul x (mul y z).
+  Axiom mul_one_l  : forall x : R, mul one x = x.
+  Axiom mul_one_r  : forall x : R, mul x one = x.
+
+  // Distributivity (both sides)
+  Axiom mul_add_distr_l : forall x y z : R, mul x (add y z) = add (mul x y) (mul x z).
+  Axiom mul_add_distr_r : forall x y z : R, mul (add x y) z = add (mul x z) (mul y z).
+
+end.

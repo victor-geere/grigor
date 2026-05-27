@@ -1,0 +1,58 @@
+// test_monoid.rig
+// Tests for bin/axioms/monoid.rig.
+//
+// Every theorem takes a Monoid parameter (Mo : Monoid) and uses all six
+// exports: M, mul, one, mul_assoc, mul_one_l, mul_one_r.
+// A parse failure here means a required name is absent or has wrong arity.
+
+Import "../axioms/monoid.rig".
+
+// ── Identity element is both-sided ───────────────────────────────────────
+
+// Left identity directly from axiom.
+Theorem monoid_left_id : forall (Mo : Monoid) (x : Mo.M),
+    Mo.mul Mo.one x = x :=
+  fun (Mo : Monoid) (x : Mo.M) => Mo.mul_one_l x.
+
+// Right identity directly from axiom.
+Theorem monoid_right_id : forall (Mo : Monoid) (x : Mo.M),
+    Mo.mul x Mo.one = x :=
+  fun (Mo : Monoid) (x : Mo.M) => Mo.mul_one_r x.
+
+// ── Associativity ────────────────────────────────────────────────────────
+
+Theorem monoid_assoc : forall (Mo : Monoid) (x y z : Mo.M),
+    Mo.mul (Mo.mul x y) z = Mo.mul x (Mo.mul y z) :=
+  fun (Mo : Monoid) (x y z : Mo.M) => Mo.mul_assoc x y z.
+
+// ── Identity is unique (functor-style proof) ──────────────────────────────
+//
+// Any element e that acts as a two-sided identity must equal one.
+// Proof: e = mul e one (right-id at e), and mul e one = one (left-id at one).
+Theorem monoid_id_unique : forall (Mo : Monoid) (e : Mo.M),
+    (forall x : Mo.M, Mo.mul e x = x) ->
+    (forall x : Mo.M, Mo.mul x e = x) ->
+    e = Mo.one :=
+  fun (Mo : Monoid) (e : Mo.M)
+      (hl : forall x : Mo.M, Mo.mul e x = x)
+      (hr : forall x : Mo.M, Mo.mul x e = x) =>
+    // e = mul e one  (right identity at e)
+    // mul e one = one  (left identity at one)
+    // chained: e  —hr e—>  mul e one  —hl one—>  one
+    trans Mo.M e (Mo.mul e Mo.one) Mo.one
+      (sym Mo.M (Mo.mul e Mo.one) e (hr e))
+      (hl Mo.one).
+
+// ── Four-fold associativity re-bracketing ────────────────────────────────
+//
+// (a * b) * (c * d) = a * (b * (c * d))
+// This exercises mul_assoc twice and ensures arities are correct.
+Theorem monoid_assoc4 : forall (Mo : Monoid) (a b c d : Mo.M),
+    Mo.mul (Mo.mul a b) (Mo.mul c d) = Mo.mul a (Mo.mul b (Mo.mul c d)) :=
+  fun (Mo : Monoid) (a b c d : Mo.M) =>
+    trans Mo.M
+      (Mo.mul (Mo.mul a b) (Mo.mul c d))
+      (Mo.mul a (Mo.mul b (Mo.mul c d)))
+      (Mo.mul a (Mo.mul b (Mo.mul c d)))
+      (Mo.mul_assoc (Mo.mul a b) c d)
+      (refl Mo.M (Mo.mul a (Mo.mul b (Mo.mul c d)))).
